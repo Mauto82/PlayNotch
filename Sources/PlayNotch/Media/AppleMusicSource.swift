@@ -58,13 +58,19 @@ final class AppleMusicSource: MediaSource {
                     set theLoved to (loved of t as string)
                 end try
             end try
-            return pstate & tab & theTitle & tab & theArtist & tab & theAlbum & tab & theDur & tab & pos & tab & theVol & tab & theShuf & tab & theRep & tab & theLoved
+            -- Radio/stream entries are "URL track"s: they can't be favorited
+            -- (or added to the library), so the UI should hide the heart.
+            set theFavoritable to "true"
+            try
+                if (class of t as string) is "URL track" then set theFavoritable to "false"
+            end try
+            return pstate & tab & theTitle & tab & theArtist & tab & theAlbum & tab & theDur & tab & pos & tab & theVol & tab & theShuf & tab & theRep & tab & theLoved & tab & theFavoritable
         end tell
         """
 
         guard let raw = AppleScriptRunner.string(script), !raw.isEmpty else { return nil }
         let parts = raw.components(separatedBy: "\t")
-        guard parts.count >= 10 else { return nil }
+        guard parts.count >= 11 else { return nil }
 
         let state: PlaybackState
         switch parts[0] {
@@ -76,6 +82,13 @@ final class AppleMusicSource: MediaSource {
         let title = parts[1]
         guard !title.isEmpty else { return nil }
 
+        // Streamed catalog tracks expose no artwork over AppleScript; fall
+        // back to looking the album up online.
+        let artworkData = fetchArtwork()
+        let artworkURL = artworkData == nil
+            ? ArtworkLookup.shared.url(artist: parts[2], album: parts[3], title: title)
+            : nil
+
         return NowPlaying(
             app: .appleMusic,
             title: title,
@@ -84,12 +97,13 @@ final class AppleMusicSource: MediaSource {
             state: state,
             duration: AppleScriptRunner.double(parts[4]),
             position: AppleScriptRunner.double(parts[5]),
-            artworkURL: nil,
-            artworkData: fetchArtwork(),
+            artworkURL: artworkURL,
+            artworkData: artworkData,
             volume: AppleScriptRunner.double(parts[6]).map { $0 / 100 },
             isShuffle: parts[7] == "true",
             repeatMode: Self.parseRepeat(parts[8]),
-            isFavorite: parts[9] == "true"
+            // Hide the heart entirely for non-favoritable entries (radio/stream).
+            isFavorite: parts[10] == "true" ? (parts[9] == "true") : nil
         )
     }
 
@@ -113,7 +127,10 @@ final class AppleMusicSource: MediaSource {
             end try
         end tell
         """
-        guard let descriptor = AppleScriptRunner.run(script) else { return nil }
+        // `missing value` comes back as a 4-byte type descriptor ('msng'),
+        // not an empty one — don't mistake it for image bytes.
+        guard let descriptor = AppleScriptRunner.run(script),
+              descriptor.descriptorType != typeType else { return nil }
         let data = descriptor.data
         return data.isEmpty ? nil : data
     }
@@ -151,14 +168,27 @@ final class AppleMusicSource: MediaSource {
     }
 
     func toggleFavorite() {
-        // Prefer `favorited` (current API); fall back to `loved` on older
-        // Music versions where `favorited` doesn't exist.
+        // Favoriting works only for tracks that are in the library. A catalog
+        // track played straight from search/browse isn't, so setting
+        // `favorited` on it silently no-ops. Mirror what the Music app does:
+        // add the track to the library first, then favorite it. Radio/stream
+        // "URL track"s can't be favorited at all — we skip them here (and the
+        // UI hides the heart via `favoritable`).
         AppleScriptRunner.run("""
         tell application "Music"
+            set t to current track
+            if (class of t as string) is "URL track" then return
+            set newState to not (favorited of t)
+            -- Ensure the track is in the library so the flag can stick.
             try
-                set favorited of current track to not (favorited of current track)
+                duplicate t to library playlist 1
+            end try
+            try
+                set favorited of t to newState
             on error
-                set loved of current track to not (loved of current track)
+                try
+                    set loved of t to newState
+                end try
             end try
         end tell
         """)
