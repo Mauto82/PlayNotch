@@ -6,6 +6,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItemController: StatusItemController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        OverlayServer.shared.start()
+
         // One shared view model → one media poll feeding both the notch and the
         // optional floating desktop widget.
         let viewModel = NotchViewModel()
@@ -35,5 +37,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         notchController?.stop()
+        OverlayServer.shared.stop()
     }
 }

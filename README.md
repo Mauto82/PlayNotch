@@ -116,6 +116,29 @@ enable Music / Spotify / your browser.
 
 ---
 
+## OBS overlay
+
+PlayNotch also serves a now-playing overlay for **OBS** (localhost only):
+
+1. In OBS: **Sources → + → Browser**.
+2. URL: `http://127.0.0.1:8973/` (menu bar → *OBS Overlay* → pick a layout to copy its URL).
+3. Size: e.g. **900 × 260** (everything scales with the height).
+
+Pick a layout for the space over your camera with `?layout=`:
+
+| Layout | Suggested size | What it shows |
+|---|---|---|
+| `bar` (default) | 700 × 200 | cover, title, artist, progress over blurred art |
+| `pill` | 600 × 90 | round cover + "title · artist" on one line |
+| `square` | 300 × 300 | full cover with text on top |
+| `text` | 600 × 120 | title and artist only, transparent |
+
+Long titles scroll instead of being cut, and suffixes like "(Remastered 2003)"
+are dropped. Other options: `bg=0` (no blurred background), `progress=0`,
+`hide=0` (stay visible when paused), `radius=0`, `align=right` (cover on the
+right), `clean=0` (keep title suffixes). Raw data is at `/now-playing.json` and
+`/artwork` if you want to build your own layout.
+
 ## Permissions reference
 
 PlayNotch reads and controls the players through system automation, so it needs
