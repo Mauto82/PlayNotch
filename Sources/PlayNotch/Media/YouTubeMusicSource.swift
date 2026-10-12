@@ -262,6 +262,15 @@ final class YouTubeMusicSource: MediaSource {
 
     private static let readJS =
         "(function(){var v=document.querySelector('video');" +
+        // "Video paused. Continue watching?": YTM pauses after a stretch with
+        // no user activity on the page. We poll every second, so count that as
+        // activity (`_lact` = last activity time). If the prompt shows anyway,
+        // confirm it and resume — the click closes it but doesn't restart.
+        "window._lact=Date.now();" +
+        "var yd=document.querySelector('ytmusic-you-there-renderer');" +
+        "var ydlg=yd?yd.closest('tp-yt-paper-dialog'):null;" +
+        "if(ydlg&&ydlg.opened){var yb=yd.querySelector('.actions button');if(yb){yb.click();}" +
+        "var ymp=document.querySelector('#movie_player');if(ymp&&ymp.playVideo){ymp.playVideo();}}" +
         "var title='',artist='',album='',art='';" +
         "var md=navigator.mediaSession&&navigator.mediaSession.metadata;" +
         "if(md&&md.title){title=md.title;artist=md.artist||'';album=md.album||'';" +
