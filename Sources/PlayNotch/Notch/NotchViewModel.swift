@@ -12,8 +12,15 @@ final class NotchViewModel: ObservableObject {
 
     /// Resolved artwork image for the current track.
     @Published private(set) var artwork: NSImage? {
-        didSet { recomputeAccent() }
+        didSet {
+            recomputeAccent()
+            overlayAccent = artwork?.vibrantColor()
+            OverlayServer.shared.updateArtwork(artwork)
+        }
     }
+
+    /// Artwork accent for the OBS overlay (independent of the theming toggle).
+    private var overlayAccent: NSColor?
 
     /// A vibrant accent colour derived from the current artwork (white when
     /// there's no artwork or theming is off), used to theme the card and bars.
@@ -143,6 +150,12 @@ final class NotchViewModel: ObservableObject {
             duration = nil
             anchorPlaying = false
         }
+        OverlayServer.shared.update(
+            nowPlaying: nowPlaying,
+            position: currentPosition(),
+            duration: duration,
+            accent: overlayAccent
+        )
     }
 
     // MARK: - Seek

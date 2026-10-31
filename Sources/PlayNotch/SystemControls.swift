@@ -5,17 +5,17 @@ enum Appearance { case light, dark, auto }
 
 @MainActor
 final class SystemControls: ObservableObject {
+    /// Shared so the notch and the desktop widget show the same state.
+    static let shared = SystemControls()
+
     @Published private(set) var appearance: Appearance = .light
     @Published private(set) var isAwake = false
 
     private var caffeinate: Process?
     private var timer: Timer?
 
-    init() {
-        // Don't run AppleScript synchronously here — this initialiser fires
-        // during SwiftUI's view-build phase (via @StateObject), and a blocking
-        // Apple event there triggers an AttributeGraph cycle / abort. Defer it.
-        DispatchQueue.main.async { [weak self] in self?.refresh() }
+    private init() {
+        refresh()
         let t = Timer(timeInterval: 3, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.refresh() }
         }
@@ -70,12 +70,7 @@ final class SystemControls: ObservableObject {
     private static func readAppearance() -> Appearance {
         let auto = UserDefaults.standard.persistentDomain(forName: UserDefaults.globalDomain)?["AppleInterfaceStyleSwitchesAutomatically"] as? Bool ?? false
         if auto { return .auto }
-        let s = AppleScriptRunner.string("""
-        tell application "System Events"
-            tell appearance preferences to return dark mode as string
-        end tell
-        """)
-        return s == "true" ? .dark : .light
+        return NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? .dark : .light
     }
 
     // MARK: - Keep awake (caffeinate)
@@ -88,7 +83,8 @@ final class SystemControls: ObservableObject {
         } else {
             let p = Process()
             p.executableURL = URL(fileURLWithPath: "/usr/bin/caffeinate")
-            p.arguments = ["-d", "-i"]   // prevent display + idle sleep
+            // Prevent display + idle sleep, until we exit (even if we crash).
+            p.arguments = ["-d", "-i", "-w", String(ProcessInfo.processInfo.processIdentifier)]
             try? p.run()
             caffeinate = p
             isAwake = true

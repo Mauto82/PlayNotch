@@ -3,9 +3,9 @@ import AppKit
 /// A movable, non-activating panel that hosts the floating desktop widget.
 ///
 /// Unlike the notch window (pinned, click-through outside the shape), this one
-/// is a normal draggable card: it floats above regular windows, can be moved
-/// anywhere, and remembers its position — but still never steals key focus from
-/// the app you're working in.
+/// is a normal draggable card: it sits on the desktop, can be moved anywhere,
+/// and remembers its position — but still never steals key focus from the app
+/// you're working in.
 final class DesktopWidgetWindow: NSPanel {
     init(contentRect: NSRect) {
         super.init(
@@ -22,7 +22,7 @@ final class DesktopWidgetWindow: NSPanel {
         backgroundColor = .clear
         isOpaque = false
         hasShadow = true
-        // The whole card is draggable by its background (see CardDragging).
+        // The whole card is draggable by its background.
         isMovableByWindowBackground = true
         hidesOnDeactivate = false
 

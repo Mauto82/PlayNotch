@@ -60,6 +60,25 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         widgetItem.state = (widget?.isVisible ?? false) ? .on : .off
         menu.addItem(widgetItem)
 
+        let obs = NSMenuItem(title: "OBS Overlay", action: nil, keyEquivalent: "")
+        let obsMenu = NSMenu()
+        let hint = NSMenuItem(title: "Copy URL for a Browser Source:", action: nil, keyEquivalent: "")
+        hint.isEnabled = false
+        obsMenu.addItem(hint)
+        for preset in OverlayPreset.all {
+            let item = NSMenuItem(title: preset.title, action: #selector(copyOverlayURL(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = preset.url
+            item.toolTip = preset.url
+            obsMenu.addItem(item)
+        }
+        obsMenu.addItem(.separator())
+        let preview = NSMenuItem(title: "Preview in Browser", action: #selector(previewOverlay), keyEquivalent: "")
+        preview.target = self
+        obsMenu.addItem(preview)
+        obs.submenu = obsMenu
+        menu.addItem(obs)
+
         let sizeItem = NSMenuItem(title: "Notch Size", action: nil, keyEquivalent: "")
         let sizeMenu = NSMenu()
         let current = notch?.sizeScale ?? 1.0
@@ -125,6 +144,16 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         }
     }
 
+    @objc private func copyOverlayURL(_ sender: NSMenuItem) {
+        guard let url = sender.representedObject as? String else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(url, forType: .string)
+    }
+
+    @objc private func previewOverlay() {
+        if let url = URL(string: OverlayServer.url + "?hide=0") { NSWorkspace.shared.open(url) }
+    }
+
     @objc private func toggleTheming() {
         guard let notch else { return }
         notch.setThemingEnabled(!notch.isThemingEnabled)
@@ -138,6 +167,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     @objc private func toggleControlCenter() {
         guard let notch else { return }
         notch.setControlCenterShown(!notch.isControlCenterShown)
+        widget?.updateSize()
     }
 
     @objc private func toggleWidget() {

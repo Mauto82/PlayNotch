@@ -32,9 +32,6 @@ final class NotchController {
         self.viewModel = viewModel
     }
 
-    /// The view model, exposed so a desktop widget can share the same state.
-    var sharedViewModel: NotchViewModel { viewModel }
-
     func start() {
         buildWindow()
         viewModel.start()
@@ -174,12 +171,7 @@ final class NotchController {
         guard let window else { return }
         let cursor = NSEvent.mouseLocation
 
-        let shouldExpand: Bool
-        if viewModel.isExpanded {
-            shouldExpand = cursorInside(notchRectInScreen(expanded: true), cursor)
-        } else {
-            shouldExpand = cursorInside(notchRectInScreen(expanded: false), cursor)
-        }
+        let shouldExpand = cursorInside(notchRectInScreen(expanded: viewModel.isExpanded), cursor)
         if viewModel.isExpanded != shouldExpand {
             // Smooth, critically-damped spring: lively but no overshoot, so the
             // notch never detaches from the screen edge on open.
@@ -196,6 +188,9 @@ final class NotchController {
     }
 
     private func layout() {
+        // The list can be briefly empty (e.g. lid closed, display unplugged);
+        // another screen-change notification follows when one is back.
+        guard !NSScreen.screens.isEmpty else { return }
         applyMetrics()
         window?.setFrame(canvasFrame(), display: true)
     }

@@ -65,6 +65,8 @@ since there's no Dock icon. From its menu you can:
 - toggle **Launch at Login**,
 - toggle **Theme from Artwork** and a **Blurred Artwork Background**,
 - **Show Quick Toggles** (the Control Center row) on/off,
+- toggle the floating **Desktop Widget**,
+- copy a URL from **OBS Overlay**,
 - pick the **Notch Size** (Compact / Default / Large),
 - pick which display hosts the notch (**Show on Screen**),
 - jump to the **Automation** privacy settings,
@@ -116,6 +118,41 @@ enable Music / Spotify / your browser.
 
 ---
 
+## OBS overlay
+
+PlayNotch also serves a now-playing overlay for **OBS** (localhost only):
+
+1. In OBS: **Sources → + → Browser**.
+2. URL: `http://127.0.0.1:8973/` (menu bar → *OBS Overlay* → pick a layout to copy its URL).
+3. Size: see the table below (everything scales with the source size).
+
+Pick a layout for the space over your camera with `?layout=`:
+
+| Layout | Suggested size | What it shows |
+|---|---|---|
+| `bar` (default) | 700 × 200 | cover, title, artist, progress over blurred art |
+| `pill` | 600 × 90 | round cover + "title · artist" on one line |
+| `square` | 300 × 300 | full cover with text on top |
+| `text` | 600 × 120 | title and artist only, transparent |
+| `video` | 640 × 360 | muted YouTube video synced to YouTube Music, text on top (`info=0` hides title and artist) |
+
+The `video` layout plays the track in a second, muted YouTube embed, so it needs
+internet access and uses extra bandwidth, may show YouTube ads, and shows the
+cover for the first seconds of each start while YouTube's controls fade. Audio
+still comes from your player. You
+get the cover instead with Spotify or Apple Music, and when the uploader has
+disabled embedding, which is common for official music videos. Check that your
+streaming platform and YouTube's terms allow showing the video before going live.
+
+Long titles scroll instead of being cut, and suffixes like "(Remastered 2003)"
+are dropped. Other options: `bg=0` (no blurred background), `progress=0`,
+`hide=0` (stay visible when paused), `radius=0`, `align=right` (cover on the
+right), `clean=0` (keep title suffixes). Raw data for your own tools is at
+`/now-playing.json` and `/artwork`; other websites can't read it, so a custom page
+has to fetch it through a local proxy.
+
+---
+
 ## Permissions reference
 
 PlayNotch reads and controls the players through system automation, so it needs
@@ -128,6 +165,7 @@ Security → Automation**.
 | Apple Music   | Automation → control **Music**                    |
 | Spotify       | Automation → control **Spotify**                  |
 | YouTube Music | Automation → control your **browser** (+ JS, below) |
+| Light/Dark toggle | Automation → control **System Events**, on first use |
 
 ### YouTube Music only
 
@@ -149,7 +187,7 @@ Supported browsers for YT Music: Chrome, Brave, Edge, Arc, Safari.
 
 | App           | How it's read / controlled                            |
 |---------------|--------------------------------------------------------|
-| Apple Music   | AppleScript to `Music.app` (artwork included)          |
+| Apple Music   | AppleScript to `Music.app`; covers of streamed tracks come from the public iTunes Search API, which receives the artist and album or title |
 | Spotify       | AppleScript to `Spotify.app` (artwork via URL)         |
 | YouTube Music | JavaScript injected into the browser tab               |
 
@@ -190,6 +228,9 @@ while it plays, and pausing it hands off to whatever else is still playing.
   display.
 - **Menu-bar item** for settings: launch at login, theming, pick which display
   hosts the notch (*Show on Screen*), quit.
+- **Desktop widget**: an optional, draggable now-playing card on the desktop.
+- **OBS overlay**: browser-source layouts, including a synced video for YouTube
+  Music.
 - Click-through everywhere outside the visible notch shape (the desktop and
   windows underneath stay fully clickable).
 
@@ -202,12 +243,14 @@ Sources/PlayNotch/
   main.swift              agent app (.accessory, no Dock)
   AppDelegate.swift       startup + reacting to screen changes
   StatusItemController    menu-bar item: settings, launch at login, quit
+  SystemControls          appearance, keep-awake and sleep toggles
   Media/
     NowPlaying.swift      data model + MediaSource protocol
     AppleScriptRunner     NSAppleScript helper (+ locale-tolerant number parse)
     AppleMusicSource      Music.app
     SpotifySource         Spotify.app
     YouTubeMusicSource    browser-tab control
+    ArtworkLookup         covers for streamed Apple Music tracks
     MediaController       picks the active source (last-played wins)
   Notch/
     NotchViewModel        state, polling, artwork loading, accent colour
@@ -216,6 +259,11 @@ Sources/PlayNotch/
     NotchController        screen geometry, mouse tracking, pass-through
     PassthroughHostingView  lets clicks pass through outside the notch
     ColorExtraction       vibrant accent colour from artwork
+  Overlay/
+    OverlayServer         localhost HTTP server for OBS
+    OverlayPage           the browser-source page and its layouts
+  Widget/
+    DesktopWidget*        floating desktop card (controller, window, view)
 scripts/
   build_app.sh            builds and packages the .app
 ```
@@ -260,4 +308,5 @@ sign it with your own Developer ID) for reliable login registration.
 - [x] Blurred-artwork background and "liquid" animations
 - [x] Preferences (notch size, quick-toggles, screen, theming)
 - [x] Control Center row (appearance, keep-awake, sleep)
-```
+- [x] Desktop widget
+- [x] OBS overlay

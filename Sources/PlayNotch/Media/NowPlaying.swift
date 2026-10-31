@@ -50,9 +50,12 @@ struct NowPlaying: Equatable {
     var repeatMode: RepeatMode?
     /// Whether the track is favorited/liked (nil = source doesn't support it).
     var isFavorite: Bool?
+    /// YouTube video ID of the current track (YouTube Music only).
+    var videoID: String?
 
     static func == (lhs: NowPlaying, rhs: NowPlaying) -> Bool {
         lhs.app == rhs.app &&
+        lhs.videoID == rhs.videoID &&
         lhs.title == rhs.title &&
         lhs.artist == rhs.artist &&
         lhs.album == rhs.album &&

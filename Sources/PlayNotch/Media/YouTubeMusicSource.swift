@@ -60,7 +60,8 @@ final class YouTubeMusicSource: MediaSource {
                 volume: Double(parts[7]),
                 isShuffle: parts[8].isEmpty ? nil : (parts[8] == "true"),
                 repeatMode: parseRepeatMode(parts[9]),
-                isFavorite: parts[10].isEmpty ? nil : (parts[10] == "LIKE")
+                isFavorite: parts[10].isEmpty ? nil : (parts[10] == "LIKE"),
+                videoID: parts.count > 11 && !parts[11].isEmpty ? parts[11] : nil
             )
         }
         return nil
@@ -309,8 +310,9 @@ final class YouTubeMusicSource: MediaSource {
         "var like='';var lb=document.querySelector('ytmusic-miniplayer like-button-view-model button');" +
         "if(lb){like=(lb.getAttribute('aria-pressed')==='true')?'LIKE':'INDIFFERENT';}" +
         "else{var lr=document.querySelector('ytmusic-player-bar ytmusic-like-button-renderer');like=lr?(lr.getAttribute('like-status')||''):'';}" +
+        "var vid='';if(mp&&typeof mp.getVideoData==='function'){var vd=mp.getVideoData();vid=(vd&&vd.video_id)||'';}" +
         "var TAB=String.fromCharCode(9);" +
-        "return st+TAB+title+TAB+artist+TAB+album+TAB+art+TAB+dur+TAB+pos+TAB+vol+TAB+shuf+TAB+rm+TAB+like;})()"
+        "return st+TAB+title+TAB+artist+TAB+album+TAB+art+TAB+dur+TAB+pos+TAB+vol+TAB+shuf+TAB+rm+TAB+like+TAB+vid;})()"
 
     /// Click the first element matching any of `selectors` (new layout first,
     /// old as fallback); if none exists, run `fallback` JS instead.

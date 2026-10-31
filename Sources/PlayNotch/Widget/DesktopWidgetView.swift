@@ -10,11 +10,13 @@ struct DesktopWidgetView: View {
     // Height is FIXED (not content-driven) so the card never changes shape
     // during a skip, when the duration is briefly unknown, or when it flips to
     // the idle clock. It also reserves enough room that content isn't crammed.
-    private let cardWidth: CGFloat = 340
-    private var cardHeight: CGFloat { viewModel.showControlCenter ? 232 : 178 }
+    static func cardSize(showControlCenter: Bool) -> NSSize {
+        NSSize(width: 340, height: showControlCenter ? 232 : 178)
+    }
 
     var body: some View {
-        ZStack {
+        let cardSize = Self.cardSize(showControlCenter: viewModel.showControlCenter)
+        return ZStack {
             // Opaque base so text always has contrast.
             RoundedRectangle(cornerRadius: 20).fill(Color.black)
 
@@ -42,7 +44,7 @@ struct DesktopWidgetView: View {
             // Centered vertically within the fixed height.
             PlayerCard(viewModel: viewModel, topInset: 0, verticallyCentered: true)
         }
-        .frame(width: cardWidth, height: cardHeight)
+        .frame(width: cardSize.width, height: cardSize.height)
         .clipShape(RoundedRectangle(cornerRadius: 20))
         .overlay(
             RoundedRectangle(cornerRadius: 20)
