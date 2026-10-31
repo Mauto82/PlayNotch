@@ -137,7 +137,9 @@ Pick a layout for the space over your camera with `?layout=`:
 | `video` | 640 × 360 | muted YouTube video synced to YouTube Music, text on top (`info=0` hides title and artist) |
 
 The `video` layout plays the track in a second, muted YouTube embed, so it needs
-internet access and uses extra bandwidth. Audio still comes from your player. You
+internet access and uses extra bandwidth, may show YouTube ads, and shows the
+cover for the first seconds of each start while YouTube's controls fade. Audio
+still comes from your player. You
 get the cover instead with Spotify or Apple Music, and when the uploader has
 disabled embedding, which is common for official music videos. Check that your
 streaming platform and YouTube's terms allow showing the video before going live.

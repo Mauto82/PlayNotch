@@ -206,38 +206,63 @@ enum OverlayPage {
   // ---- video layout ----
   // The embed is a second, muted player: it follows the YouTube Music tab and
   // is only revealed once it actually plays, so any failure leaves the cover.
-  const MAX_DRIFT = 1.5, SEEK_COOLDOWN = 5000, START_TIMEOUT = 10000;
-  let player = null, videoId = null, videoFailed = false, videoPlayed = false;
-  let videoStartedAt = 0, lastSeek = 0;
+  //
+  // Pausing, seeking or calling play on an embed brings up YouTube's controls
+  // (pause button, title, "more videos"), and with no mouse over it they never
+  // go away. We can't reach into the iframe, so we never do any of those: when
+  // playback stops or drifts too far, the player is destroyed and a fresh one
+  // loads the track at the right position.
+  const MAX_DRIFT = 3, RESYNC_COOLDOWN = 30000, START_TIMEOUT = 10000;
+  const STOP_GRACE = 2000;   // YouTube Music reports a brief pause between tracks
+  const REVEAL_DELAY = 6000; // the controls also show at every start, then fade
+  let apiReady = false, creating = false, player = null;
+  let videoId = null, failedId = null, videoPlayed = false;
+  let videoStartedAt = 0, lastResync = 0, stoppedAt = 0, revealTimer = null;
 
-  function showVideo(on) { document.body.classList.toggle('has-video', on); }
+  function showVideo(on) {
+    clearTimeout(revealTimer);
+    document.body.classList.toggle('has-video', on);
+  }
 
   function loadPlayer() {
-    window.onYouTubeIframeAPIReady = () => {
-      new YT.Player('player', {
-        width: '100%', height: '100%',
-        playerVars: { mute: 1, controls: 0, disablekb: 1, fs: 0, rel: 0, playsinline: 1,
-          iv_load_policy: 3, origin: location.origin },
-        events: {
-          onReady: e => { e.target.mute(); player = e.target; syncVideo(); },
-          onStateChange: e => {
-            if (e.data === YT.PlayerState.PLAYING && !videoFailed && videoId) {
-              videoPlayed = true;
-              showVideo(true);
-            }
-          },
-          // 2/5: bad request, 100: removed, 101/150/153: embedding not allowed.
-          onError: () => failVideo(),
-        },
-      });
-    };
+    window.onYouTubeIframeAPIReady = () => { apiReady = true; syncVideo(); };
     const s = document.createElement('script');
     s.src = 'https://www.youtube.com/iframe_api';
     document.head.appendChild(s);
   }
 
+  function createPlayer() {
+    creating = true;
+    new YT.Player('player', {
+      width: '100%', height: '100%',
+      playerVars: { mute: 1, controls: 0, disablekb: 1, fs: 0, rel: 0, playsinline: 1,
+        iv_load_policy: 3, origin: location.origin },
+      events: {
+        onReady: e => { e.target.mute(); player = e.target; creating = false; syncVideo(); },
+        onStateChange: e => {
+          if (e.data === YT.PlayerState.PLAYING && videoId && videoId !== failedId) {
+            if (!videoPlayed) revealTimer = setTimeout(() => showVideo(true), REVEAL_DELAY);
+            videoPlayed = true;
+          } else if (e.data === YT.PlayerState.ENDED) {
+            showVideo(false);   // hide the end screen until the next track
+          }
+        },
+        // 2/5: bad request, 100: removed, 101/150/153: embedding not allowed.
+        onError: () => failVideo(),
+      },
+    });
+  }
+
+  function destroyPlayer() {
+    showVideo(false);
+    player.destroy();
+    player = null;
+    videoId = null;
+    $('video').innerHTML = '<div id="player"></div>';
+  }
+
   function failVideo() {
-    videoFailed = true;
+    failedId = videoId;
     showVideo(false);
     if (player) player.stopVideo();
   }
@@ -250,40 +275,41 @@ enum OverlayPage {
   }
 
   function syncVideo() {
-    if (!player) return;
+    if (!apiReady || creating) return;
+    const now = Date.now();
     const id = state && state.active && state.videoId ? state.videoId : null;
-    if (!id) {
-      if (videoId) player.stopVideo();
-      videoId = null;
-      showVideo(false);
+    if (!id || !state.playing) {
+      if (!id) stoppedAt = 0;
+      else if (!stoppedAt) stoppedAt = now;
+      if (player && (!id || now - stoppedAt > STOP_GRACE)) destroyPlayer();
       return;
     }
+    stoppedAt = 0;
+    if (id === failedId) return;
+    if (!player) { createPlayer(); return; }
+
     if (id !== videoId) {
       videoId = id;
-      videoFailed = videoPlayed = false;
-      videoStartedAt = Date.now();
+      videoPlayed = false;
+      videoStartedAt = now;
       showVideo(false);
       player.loadVideoById({ videoId: id, startSeconds: targetPosition() });
-      if (!state.playing) player.pauseVideo();
       return;
     }
-    if (videoFailed) return;
 
     const playerState = player.getPlayerState();
-    if (!state.playing) {
-      videoStartedAt = Date.now();   // the start timeout only counts while playing
-      if (playerState === YT.PlayerState.PLAYING) player.pauseVideo();
-    } else if (playerState === YT.PlayerState.PLAYING) {
-      const now = Date.now();
-      if (Math.abs(player.getCurrentTime() - targetPosition()) > MAX_DRIFT && now - lastSeek > SEEK_COOLDOWN) {
-        lastSeek = now;
-        player.seekTo(targetPosition(), true);
+    if (playerState === YT.PlayerState.PLAYING) {
+      if (Math.abs(player.getCurrentTime() - targetPosition()) > MAX_DRIFT && now - lastResync > RESYNC_COOLDOWN) {
+        lastResync = now;
+        destroyPlayer();
+        return;
       }
-    } else if (playerState !== YT.PlayerState.BUFFERING) {
-      player.playVideo();
+    } else if (playerState === YT.PlayerState.PAUSED) {
+      destroyPlayer();   // paused on its own: its controls are now stuck on screen
+      return;
     }
     // Never got going (e.g. blocked without an error event): give up.
-    if (state.playing && !videoPlayed && Date.now() - videoStartedAt > START_TIMEOUT) failVideo();
+    if (!videoPlayed && now - videoStartedAt > START_TIMEOUT) failVideo();
   }
 
   function tick() {
