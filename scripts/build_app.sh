@@ -10,6 +10,7 @@ BUNDLE_ID="com.playnotch.app"
 CONFIG="release"
 BUILD_DIR=".build/${CONFIG}"
 APP_DIR="build/${APP_NAME}.app"
+VERSION="0.2.0"
 
 echo "==> Compiling (${CONFIG})..."
 swift build -c "${CONFIG}"
@@ -35,7 +36,7 @@ cat > "${APP_DIR}/Contents/Info.plist" <<PLIST
     <key>CFBundleVersion</key>
     <string>1</string>
     <key>CFBundleShortVersionString</key>
-    <string>0.1</string>
+    <string>${VERSION}</string>
     <key>CFBundleExecutable</key>
     <string>${APP_NAME}</string>
     <key>CFBundlePackageType</key>
@@ -45,7 +46,7 @@ cat > "${APP_DIR}/Contents/Info.plist" <<PLIST
     <key>LSUIElement</key>
     <true/>
     <key>NSAppleEventsUsageDescription</key>
-    <string>PlayNotch needs to control Music and Spotify to show and manage what is playing.</string>
+    <string>PlayNotch controls Music, Spotify and your browser (for YouTube Music) to show and manage what is playing, and System Events to switch the system appearance.</string>
 </dict>
 </plist>
 PLIST

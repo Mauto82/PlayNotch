@@ -84,7 +84,7 @@ final class AppleMusicSource: MediaSource {
 
         // Streamed catalog tracks expose no artwork over AppleScript; fall
         // back to looking the album up online.
-        let artworkData = fetchArtwork()
+        let artworkData = artwork(forKey: "\(title)|\(parts[2])|\(parts[3])")
         let artworkURL = artworkData == nil
             ? ArtworkLookup.shared.url(artist: parts[2], album: parts[3], title: title)
             : nil
@@ -113,6 +113,18 @@ final class AppleMusicSource: MediaSource {
         case "one": return .one
         default: return .off
         }
+    }
+
+    private var cachedArtwork: (key: String, data: Data)?
+
+    /// The cover only changes with the track, so keep it instead of copying the
+    /// bytes over Apple events on every poll. Misses aren't cached, so a cover
+    /// that shows up late is still picked up.
+    private func artwork(forKey key: String) -> Data? {
+        if let cachedArtwork, cachedArtwork.key == key { return cachedArtwork.data }
+        guard let data = fetchArtwork() else { return nil }
+        cachedArtwork = (key, data)
+        return data
     }
 
     /// Artwork comes back as raw image data from the scripting bridge.

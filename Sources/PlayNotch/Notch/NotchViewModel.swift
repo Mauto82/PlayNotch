@@ -153,6 +153,7 @@ final class NotchViewModel: ObservableObject {
         OverlayServer.shared.update(
             nowPlaying: nowPlaying,
             position: currentPosition(),
+            duration: duration,
             accent: overlayAccent
         )
     }

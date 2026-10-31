@@ -33,6 +33,11 @@ final class OverlayServer {
             params.allowLocalEndpointReuse = true
             let listener = try NWListener(using: params)
             listener.newConnectionHandler = { [weak self] conn in self?.handle(conn) }
+            listener.stateUpdateHandler = { state in
+                if case .failed(let error) = state {
+                    NSLog("PlayNotch overlay server stopped: \(error)")
+                }
+            }
             listener.start(queue: queue)
             self.listener = listener
         } catch {
@@ -49,7 +54,7 @@ final class OverlayServer {
 
     /// Publish the latest snapshot. `position` is the interpolated playback
     /// position at call time; the page extrapolates from `updatedAt`.
-    func update(nowPlaying: NowPlaying?, position: Double, accent: NSColor?) {
+    func update(nowPlaying: NowPlaying?, position: Double, duration: Double?, accent: NSColor?) {
         var payload: [String: Any] = ["playing": false]
         if let np = nowPlaying {
             lock.lock()
@@ -63,11 +68,12 @@ final class OverlayServer {
                 "title": np.title,
                 "artist": np.artist,
                 "album": np.album,
-                "duration": np.duration ?? 0,
+                "duration": duration ?? 0,
                 "position": position,
                 "updatedAt": Date().timeIntervalSince1970 * 1000,
                 "artwork": hasArt ? "/artwork?v=\(version)" : NSNull(),
                 "accent": accent.flatMap(Self.hex) ?? NSNull(),
+                "videoId": np.videoID ?? NSNull(),
             ]
         }
         guard let data = try? JSONSerialization.data(withJSONObject: payload) else { return }
@@ -137,7 +143,6 @@ final class OverlayServer {
             "Content-Type: \(type)\r\n" +
             "Content-Length: \(body.count)\r\n" +
             "Cache-Control: no-store\r\n" +
-            "Access-Control-Allow-Origin: *\r\n" +
             "Connection: close\r\n\r\n"
         var out = Data(head.utf8)
         out.append(body)
@@ -158,6 +163,7 @@ struct OverlayPreset {
         OverlayPreset(title: "Pill — corner strip (600×90)", query: "?layout=pill"),
         OverlayPreset(title: "Square — side panel (300×300)", query: "?layout=square"),
         OverlayPreset(title: "Text only, transparent (600×120)", query: "?layout=text"),
+        OverlayPreset(title: "Video — YouTube Music (640×360)", query: "?layout=video"),
         OverlayPreset(title: "Bar, transparent (700×200)", query: "?bg=0"),
     ]
 }

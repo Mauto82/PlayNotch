@@ -96,7 +96,7 @@ struct NotchView: View {
     /// The card body, reused by the desktop widget. `topInset` reserves space
     /// for the physical notch strip (0 in the standalone widget).
     private var expandedContent: some View {
-        PlayerCard(viewModel: viewModel, topInset: viewModel.collapsedSize.height)
+        PlayerCard(viewModel: viewModel, topInset: viewModel.collapsedSize.height, isVisible: expanded)
     }
 }
 
@@ -110,7 +110,9 @@ struct PlayerCard: View {
     /// (the desktop widget uses a fixed, taller frame). The notch keeps its
     /// top-anchored layout so it stays glued to the screen edge.
     var verticallyCentered: Bool = false
-    @StateObject private var system = SystemControls()
+    /// False while the card is hidden (collapsed notch), to stop the animations.
+    var isVisible: Bool = true
+    @ObservedObject private var system = SystemControls.shared
 
     var body: some View {
         VStack(spacing: 0) {
@@ -171,7 +173,7 @@ struct PlayerCard: View {
 
                 // Always mounted (even mid-skip when duration is briefly
                 // unknown) so the controls below never jump.
-                ProgressBar(viewModel: viewModel)
+                ProgressBar(viewModel: viewModel, isVisible: isVisible)
                     .padding(.horizontal, 28)
                     .padding(.top, 10)
 
@@ -249,13 +251,14 @@ struct PlayerCard: View {
 /// writes the seek to the player when the drag ends.
 private struct ProgressBar: View {
     @ObservedObject var viewModel: NotchViewModel
+    let isVisible: Bool
     /// Non-nil while the user is dragging: the fraction under the finger.
     @State private var scrubFraction: Double?
     /// Mouse x over the bar while hovering (nil when the pointer is away).
     @State private var hoverX: CGFloat?
 
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 0.05)) { _ in
+        TimelineView(.animation(minimumInterval: 0.05, paused: !isVisible)) { _ in
             let duration = viewModel.duration ?? 0
             let livePosition = viewModel.currentPosition()
             let liveFraction = duration > 0 ? min(max(livePosition / duration, 0), 1) : 0

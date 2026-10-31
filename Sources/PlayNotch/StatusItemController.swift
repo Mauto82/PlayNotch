@@ -167,6 +167,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     @objc private func toggleControlCenter() {
         guard let notch else { return }
         notch.setControlCenterShown(!notch.isControlCenterShown)
+        widget?.updateSize()
     }
 
     @objc private func toggleWidget() {

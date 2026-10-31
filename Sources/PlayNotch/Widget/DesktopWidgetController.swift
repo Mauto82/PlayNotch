@@ -29,9 +29,9 @@ final class DesktopWidgetController {
         let host = NSHostingView(rootView: DesktopWidgetView(viewModel: viewModel))
         host.translatesAutoresizingMaskIntoConstraints = true
         host.autoresizingMask = [.width, .height]
-        // The card has a fixed intrinsic size; ask it once and pin the window
-        // to it so the window never resizes as the track/state changes.
-        let size = host.fittingSize
+        // Pin the window to the card's fixed size so it never resizes as the
+        // track/state changes.
+        let size = DesktopWidgetView.cardSize(showControlCenter: viewModel.showControlCenter)
 
         let panel = DesktopWidgetWindow(contentRect: NSRect(origin: .zero, size: size))
         panel.contentView = host
@@ -54,6 +54,15 @@ final class DesktopWidgetController {
             window.orderOut(nil)
         }
         window = nil
+    }
+
+    /// Match the card after the quick toggles row is shown or hidden, keeping
+    /// the top edge in place.
+    func updateSize() {
+        guard let window else { return }
+        let size = DesktopWidgetView.cardSize(showControlCenter: viewModel.showControlCenter)
+        let origin = NSPoint(x: window.frame.minX, y: window.frame.maxY - size.height)
+        window.setFrame(NSRect(origin: origin, size: size), display: true)
     }
 
     @objc private func windowMoved(_ note: Notification) {
